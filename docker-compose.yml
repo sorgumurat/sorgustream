@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  streamhub:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TMDB_API_KEYS=${TMDB_API_KEYS}
+      - TMDB_EMBED_API_URL=${TMDB_EMBED_API_URL:-}
+      - PORT=3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/trending"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # İsteğe bağlı: sorgumurat/TMDB-Embed-API ayrı servis olarak
+  # tmdb-embed-api:
+  #   image: ghcr.io/inside4ndroid/tmdb-embed-api:latest
+  #   ports:
+  #     - "4000:4000"
+  #   environment:
+  #     - TMDB_API_KEY=${TMDB_API_KEYS}
+  #   restart: unless-stopped
