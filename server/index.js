@@ -5,6 +5,42 @@ import path from 'path';
 import { searchTMDB, getMovieDetails, getTVDetails, getTrending, getPopular } from './tmdb.js';
 import { getEmbedSources } from './sources.js';
 
+import express from 'express';
+import cors from 'cors';
+import fetch from 'node-fetch'; // Vercel için gerekebilir: npm install node-fetch
+import { fileURLToPath } from 'url';
+import path from 'path';
+// ... diğer importlar (tmdb, sources vb.)
+
+const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/recFilmlerkategori.m3u';
+
+// ... (mevcut express tanımları)
+
+// M3U Listesini Çeken Yeni Endpoint
+app.get('/api/m3u-list', async (req, res) => {
+  try {
+    const response = await fetch(M3U_URL);
+    const text = await response.text();
+    const lines = text.split('\n');
+    const playlist = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('#EXTINF:')) {
+        const name = lines[i].split(',')[1]?.trim() || "Başlıksız";
+        const url = lines[i + 1]?.trim();
+        const logoMatch = lines[i].match(/tvg-logo="([^"]+)"/);
+        const logo = logoMatch ? logoMatch[1] : null;
+
+        if (url && !url.startsWith('#')) {
+          playlist.push({ name, url, logo });
+        }
+      }
+    }
+    res.json(playlist);
+  } catch (err) {
+    res.status(500).json({ error: "M3U listesi çekilemedi." });
+  }
+});
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
