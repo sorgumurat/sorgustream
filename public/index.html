@@ -12,88 +12,141 @@
   --border:#252535;--border2:#303048;
   --text1:#e8e8f0;--text2:#a0a0b8;--text3:#606078;
   --accent:#7c6bcc;--accent2:#a78bfa;--accent-bg:#1a1530;
-  --green:#4ade80;--yellow:#facc15;--red:#f87171;
   --radius:10px;--radius-sm:6px;
 }
-html,body{height:100%;background:var(--bg0);color:var(--text1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px}
-a{color:inherit;text-decoration:none}
-button{cursor:pointer;border:none;background:none;color:inherit;font:inherit}
-/* M3U Listesi İçin Ekstra Stiller */
-.m3u-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 20px; }
-.m3u-item { background: var(--bg2); padding: 10px; border-radius: var(--radius-sm); cursor: pointer; text-align: center; border: 1px solid var(--border); transition: 0.2s; }
-.m3u-item:hover { border-color: var(--accent); background: var(--bg3); }
-.m3u-item img { width: 50px; height: 50px; object-fit: contain; margin: 0 auto 10px; }
-#hls-player { width: 100%; height: 100%; display: none; background: #000; }
-/* ... (Mevcut diğer stillerin devamı) ... */
+html,body{height:100%;background:var(--bg0);color:var(--text1);font-family:sans-serif;overflow-x:hidden}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.nav-btns button{margin-left:15px;padding:8px 12px;border-radius:var(--radius-sm);transition:0.2s; background:var(--bg2); border:1px solid var(--border)}
+.nav-btns button:hover{background:var(--accent); color:white}
+.container{padding:20px;max-width:1400px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px}
+.card{background:var(--bg2);border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);cursor:pointer;transition:0.3s;position:relative}
+.card:hover{transform:translateY(-5px);border-color:var(--accent)}
+.card img{width:100%;aspect-ratio:2/3;object-fit:cover}
+.card-info{padding:12px;font-size:13px}
+.rating{position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.8);padding:4px 8px;border-radius:4px;color:var(--yellow);font-size:12px;font-weight:bold}
+#player-modal{display:none;position:fixed;inset:0;background:#000;z-index:1000}
+#video-wrapper{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+iframe, video{width:100%;height:100%;border:none}
+.search-box input{background:var(--bg2);border:1px solid var(--border);color:white;padding:10px 20px;border-radius:20px;width:300px;outline:none;transition:0.3s}
+.search-box input:focus{border-color:var(--accent);box-shadow:0 0 10px rgba(124,107,204,0.3)}
 </style>
 </head>
 <body>
 
-<header style="display:flex; align-items:center; justify-content:space-between; padding:15px 25px; background:var(--bg1); border-bottom:1px solid var(--border)">
-    <div style="font-weight:bold; font-size:20px; color:var(--accent)">StreamHub</div>
-    <div style="display:flex; gap:15px">
-        <button onclick="loadSection('home')">Ana Sayfa</button>
-        <button onclick="fetchM3U()" style="color:var(--yellow)">📺 Canlı TV / M3U</button>
+<header>
+    <div style="font-weight:bold;color:var(--accent);font-size:24px;cursor:pointer" onclick="initHome()">StreamHub</div>
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Film, Dizi veya Kanal ara..." oninput="debounceSearch(this.value)">
     </div>
-    </header>
-
-<main id="content-area">
-    </main>
-
-<div id="player-modal" style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,0.95)">
-    <div style="height:50px; display:flex; align-items:center; justify-content:flex-end; padding:0 20px">
-        <button onclick="closePlayer()" style="font-size:24px">&times;</button>
+    <div class="nav-btns">
+        <button onclick="initHome()">🏠 Ana Sayfa</button>
+        <button onclick="fetchM3U()" style="border-color:var(--accent2)">📺 Canlı TV</button>
     </div>
-    <div id="video-wrapper" style="width:100%; height:calc(100% - 100px)">
-        <iframe id="player-iframe" frameborder="0" allowfullscreen style="width:100%; height:100%; display:none"></iframe>
-        <video id="hls-player" controls></video>
+</header>
+
+<div class="container" id="mainContent">
+    <div style="text-align:center;padding:50px">Yükleniyor...</div>
+</div>
+
+<div id="player-modal">
+    <button onclick="closePlayer()" style="position:absolute;top:20px;right:20px;z-index:1100;font-size:40px;color:white;background:none;border:none">&times;</button>
+    <div id="video-wrapper">
+        <iframe id="player-iframe" allowfullscreen style="display:none"></iframe>
+        <video id="hls-player" controls style="display:none"></video>
     </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
+let searchTimer;
 
-// --- M3U Fonksiyonları ---
-async function fetchM3U() {
-    const content = $('content-area');
-    content.innerHTML = '<div style="padding:20px">Liste yükleniyor...</div>';
-    
+// 1. ANA SAYFA: Trendleri Getir
+async function initHome() {
+    $('mainContent').innerHTML = '<div style="text-align:center;padding:50px">Trendler yükleniyor...</div>';
     try {
-        const res = await fetch('/api/m3u-list');
-        const list = await res.json();
-        
-        let html = '<div class="m3u-list">';
-        list.forEach(item => {
-            html += `
-                <div class="m3u-item" onclick="playStream('${item.url}')">
-                    ${item.logo ? `<img src="${item.logo}" onerror="this.src='https://placehold.co/50x50?text=TV'">` : '<img src="https://placehold.co/50x50?text=TV">'}
-                    <div style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${item.name}</div>
-                </div>
-            `;
-        });
-        html += '</div>';
-        content.innerHTML = html;
+        const res = await fetch('/api/trending');
+        const data = await res.json();
+        renderGrid(data.results || [], "Haftanın Trendleri");
     } catch (e) {
-        content.innerHTML = '<div style="padding:20px; color:red">Liste yüklenemedi.</div>';
+        $('mainContent').innerHTML = '<div style="color:var(--red);text-align:center">Sunucu bağlantısı kurulamadı. Lütfen Vercel ayarlarını kontrol edin.</div>';
     }
 }
 
+// 2. M3U LİSTESİ: Canlı TV Kanalları
+async function fetchM3U() {
+    $('mainContent').innerHTML = '<div style="text-align:center;padding:50px">Kanal listesi çekiliyor...</div>';
+    try {
+        const res = await fetch('/api/m3u-list');
+        const list = await res.json();
+        let html = '<div class="grid">';
+        list.forEach(item => {
+            html += `
+                <div class="card" onclick="playStream('${item.url}')">
+                    <img src="${item.logo || 'https://placehold.co/400x600?text=TV'}" onerror="this.src='https://placehold.co/400x600?text=TV'">
+                    <div class="card-info"><b>${item.name}</b></div>
+                </div>`;
+        });
+        html += '</div>';
+        $('mainContent').innerHTML = '<h2 style="margin-bottom:20px">Canlı TV Kanalları</h2>' + html;
+    } catch (e) {
+        $('mainContent').innerHTML = '<div style="color:var(--red);text-align:center">M3U listesi sunucudan alınamadı.</div>';
+    }
+}
+
+// 3. ARAMA: Debounce ile API Yormadan Arama
+function debounceSearch(q) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => searchTMDB(q), 500);
+}
+
+async function searchTMDB(query) {
+    if (query.length < 3) return;
+    try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        renderGrid(data.results || [], `"${query}" için sonuçlar`);
+    } catch (e) { console.error("Arama hatası"); }
+}
+
+function renderGrid(items, title) {
+    let html = `<h2 style="margin-bottom:20px">${title}</h2><div class="grid">`;
+    items.forEach(item => {
+        html += `
+            <div class="card" onclick="openPlayer(${item.id}, '${item.type || 'movie'}')">
+                <div class="rating">★ ${item.rating || 'N/A'}</div>
+                <img src="${item.poster || ''}" onerror="this.src='https://placehold.co/400x600?text=Afiş+Yok'">
+                <div class="card-info">
+                    <b>${item.title || item.name}</b><br>
+                    <small style="color:var(--text3)">${item.year || ''} • ${item.type === 'tv' ? 'Dizi' : 'Film'}</small>
+                </div>
+            </div>`;
+    });
+    html += '</div>';
+    $('mainContent').innerHTML = html;
+}
+
+// 4. PLAYER: Video ve Iframe Yönetimi
+function openPlayer(id, type) {
+    const url = `https://vidsrc.xyz/embed/${type}?tmdb=${id}`;
+    playStream(url);
+}
+
 function playStream(url) {
-    const modal = $('player-modal');
+    $('player-modal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
     const iframe = $('player-iframe');
     const video = $('hls-player');
-    
-    modal.style.display = 'block';
-    
-    if (url.includes('.m3u8')) {
+
+    if (url.includes('.m3u8') || url.includes('.mp4')) {
         iframe.style.display = 'none';
         video.style.display = 'block';
-        if (Hls.isSupported()) {
+        if (Hls.isSupported() && url.includes('.m3u8')) {
             const hls = new Hls();
             hls.loadSource(url);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        } else {
             video.src = url;
             video.play();
         }
@@ -106,13 +159,13 @@ function playStream(url) {
 
 function closePlayer() {
     $('player-modal').style.display = 'none';
+    document.body.style.overflow = 'auto';
     $('player-iframe').src = '';
     $('hls-player').pause();
     $('hls-player').src = '';
 }
 
-// --- Mevcut TMDB Fonksiyonlarının Devamı ---
-// Buraya kendi orijinal scriptlerini (searchTMDB, openPlayer vb.) olduğu gibi ekleyebilirsin.
+window.onload = initHome;
 </script>
 </body>
 </html>
