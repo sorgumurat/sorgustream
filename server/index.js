@@ -5,39 +5,36 @@ import path from 'path';
 import { searchTMDB, getMovieDetails, getTVDetails, getTrending, getPopular } from './tmdb.js';
 import { getEmbedSources } from './sources.js';
 
+// Vercel/Node 18+ ortamında fetch yerleşiktir. Değilse diye kontrol:
+const fetch = globalThis.fetch;
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Senin M3U dosyanın adresi
-const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/recFilmlerkategori.m3u';
-
 app.use(cors());
 app.use(express.json());
-// Statik dosyaları (index.html) public klasöründen servis et
+// Statik dosyaların yolu (Vercel için kritik)
 app.use(express.static(path.join(__dirname, '../public')));
 
-// ── M3U Listesi Çekme (Yeni Eklenen) ──────────────────────────
+// ── M3U KATEGORİ LİSTESİ (SENİN LİNKİN) ───────────────────────
+const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/recFilmlerkategori.m3u';
+
 app.get('/api/m3u-list', async (req, res) => {
   try {
     const response = await fetch(M3U_URL);
-    if (!response.ok) throw new Error('M3U dosyası indirilemedi');
-    
     const text = await response.text();
     const lines = text.split('\n');
     const playlist = [];
 
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].startsWith('#EXTINF:')) {
-        // İsim ayıklama
         const namePart = lines[i].split(',')[1];
-        const name = namePart ? namePart.trim() : "Bilinmeyen Kanal";
+        const name = namePart ? namePart.trim() : "Kanal";
         
-        // Logo ayıklama (tvg-logo="...")
         const logoMatch = lines[i].match(/tvg-logo="([^"]+)"/);
         const logo = logoMatch ? logoMatch[1] : null;
-
-        // Bir sonraki satır URL olmalı
+        
         const url = lines[i + 1] ? lines[i + 1].trim() : null;
 
         if (url && !url.startsWith('#')) {
@@ -47,87 +44,43 @@ app.get('/api/m3u-list', async (req, res) => {
     }
     res.json(playlist);
   } catch (e) {
-    console.error('M3U Hatası:', e.message);
-    res.status(500).json({ error: 'M3U listesi hazırlanamadı' });
+    res.status(500).json({ error: "M3U verisi çekilemedi" });
   }
 });
 
-// ── Film/Dizi Arama ──────────────────────────────────────────────
-app.get('/api/search', async (req, res) => {
-  try {
-    const { q, lang = 'tr-TR' } = req.query;
-    if (!q) return res.status(400).json({ error: 'Arama terimi gerekli' });
-    const results = await searchTMDB(q, lang);
-    res.json(results);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
+// ── STANDART TMDB VE KAYNAK ENDPOINTLERİ ───────────────────────
 
-// ── Trend içerikler ─────────────────────────────────────────────
 app.get('/api/trending', async (req, res) => {
   try {
-    const { type = 'all', period = 'week', lang = 'tr-TR' } = req.query;
-    const data = await getTrending(type, period, lang);
+    const data = await getTrending('all', 'week', 'tr-TR');
     res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-} );
-
-// ── Popüler içerikler ────────────────────────────────────────────
-app.get('/api/popular', async (req, res) => {
-  try {
-    const { type = 'movie', lang = 'tr-TR', page = 1 } = req.query;
-    const data = await getPopular(type, lang, page);
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Film detayları ───────────────────────────────────────────────
+app.get('/api/search', async (req, res) => {
+  try {
+    const results = await searchTMDB(req.query.q, 'tr-TR');
+    res.json(results);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/movie/:id', async (req, res) => {
   try {
-    const data = await getMovieDetails(req.params.id, req.query.lang || 'tr-TR');
+    const data = await getMovieDetails(req.params.id, 'tr-TR');
     res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Dizi detayları ───────────────────────────────────────────────
 app.get('/api/tv/:id', async (req, res) => {
   try {
-    const data = await getTVDetails(req.params.id, req.query.lang || 'tr-TR');
+    const data = await getTVDetails(req.params.id, 'tr-TR');
     res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Embed kaynakları (film) ──────────────────────────────────────
-app.get('/api/sources/movie/:id', async (req, res) => {
-  try {
-    const sources = await getEmbedSources('movie', req.params.id);
-    res.json(sources);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+// Catch-all: Diğer tüm istekleri index.html'e yönlendir
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// ── Embed kaynakları (dizi bölüm) ───────────────────────────────
-app.get('/api/sources/tv/:id/:season/:episode', async (req, res) => {
-  try {
-    const { id, season, episode } = req.params;
-    const sources = await getEmbedSources('tv', id, season, episode);
-    res.json(sources);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Sunucuyu başlat
-app.listen(PORT, () => {
-  console.log(`Sunucu http://localhost:${PORT} adresinde çalışıyor`);
-});
+app.listen(PORT, () => console.log(`Sunucu aktif: ${PORT}`));
