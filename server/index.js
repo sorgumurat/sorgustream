@@ -5,19 +5,16 @@ import path from 'path';
 import { searchTMDB, getMovieDetails, getTVDetails, getTrending, getPopular } from './tmdb.js';
 import { getEmbedSources } from './sources.js';
 
-// Vercel/Node 18+ ortamında fetch yerleşiktir. Değilse diye kontrol:
-const fetch = globalThis.fetch;
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-// Statik dosyaların yolu (Vercel için kritik)
+// Statik dosyaları servis et
 app.use(express.static(path.join(__dirname, '../public')));
 
-// ── M3U KATEGORİ LİSTESİ (SENİN LİNKİN) ───────────────────────
+// ── M3U LİSTESİ ÇEKME (SENİN GITHUB LİNKİN) ───────────────────
 const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/recFilmlerkategori.m3u';
 
 app.get('/api/m3u-list', async (req, res) => {
@@ -44,26 +41,34 @@ app.get('/api/m3u-list', async (req, res) => {
     }
     res.json(playlist);
   } catch (e) {
-    res.status(500).json({ error: "M3U verisi çekilemedi" });
+    res.status(500).json({ error: "M3U listesi çekilemedi: " + e.message });
   }
 });
 
-// ── STANDART TMDB VE KAYNAK ENDPOINTLERİ ───────────────────────
-
+// ── TRENDLER (ANA SAYFA İÇİN) ──────────────────────────────
 app.get('/api/trending', async (req, res) => {
   try {
-    const data = await getTrending('all', 'week', 'tr-TR');
+    const { type = 'all', period = 'week', lang = 'tr-TR' } = req.query;
+    const data = await getTrending(type, period, lang);
     res.json(data);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
+// ── ARAMA ────────────────────────────────────────────────────
 app.get('/api/search', async (req, res) => {
   try {
-    const results = await searchTMDB(req.query.q, 'tr-TR');
+    const { q, lang = 'tr-TR' } = req.query;
+    if (!q) return res.json({ results: [] });
+    const results = await searchTMDB(q, lang);
     res.json(results);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
+// ── FİLM VE DİZİ DETAY ───────────────────────────────────────
 app.get('/api/movie/:id', async (req, res) => {
   try {
     const data = await getMovieDetails(req.params.id, 'tr-TR');
@@ -78,9 +83,11 @@ app.get('/api/tv/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Catch-all: Diğer tüm istekleri index.html'e yönlendir
+// Herhangi bir hata durumunda veya doğrudan erişimde index.html'e yönlendir
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-app.listen(PORT, () => console.log(`Sunucu aktif: ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Sunucu ${PORT} portunda hazır.`);
+});
