@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ── M3U LİSTESİ ÇEKME (SENİN GITHUB LİNKİN) ───────────────────
-const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/recFilmlerkategori.m3u';
+const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/canl%C4%B1%20tv.m3u';
 
 app.get('/api/m3u-list', async (req, res) => {
   try {
