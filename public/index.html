@@ -127,16 +127,33 @@ async function fetchList(type) {
 
 function filterCategory(cat) {
   const grid = document.getElementById('listGrid');
+  // Kategoriyi filtrele
   const filtered = cat === "Hepsi" ? allData : allData.filter(item => (item.group || "").toLowerCase().includes(cat.toLowerCase()));
   
-  grid.innerHTML = filtered.map(item => `
-    <div class="card" onclick="playStream('${item.url}')">
-      <div class="img-container">
-        <img src="${item.logo || ''}" onerror="this.src='https://via.placeholder.com/100x60?text=Logo'">
+  // Varsayılan Modern Logolar
+  const defaultTVLogo = "https://cdn-icons-png.flaticon.com/512/716/716429.png"; 
+  const defaultRadioLogo = "https://cdn-icons-png.flaticon.com/512/3012/3012351.png";
+
+  grid.innerHTML = filtered.map(item => {
+    // 1. Kanalın tipini belirle (URL'ye bakarak)
+    const isRadio = item.url.includes('radio') || cat === 'Radyo';
+    const fallbackLogo = isRadio ? defaultRadioLogo : defaultTVLogo;
+    
+    // 2. Eğer logo linki boşsa varsayılanı kullan
+    const finalLogo = (item.logo && item.logo !== "") ? item.logo : fallbackLogo;
+
+    return `
+      <div class="card" onclick="playStream('${item.url}')">
+        <div class="img-container">
+          <img src="${finalLogo}" 
+               alt="${item.name}"
+               onerror="this.src='${fallbackLogo}'" 
+               style="filter: drop-shadow(0px 0px 8px rgba(124, 107, 204, 0.4)); max-width: 80%; max-height: 80%;">
+        </div>
+        <div class="card-info">${item.name}</div>
       </div>
-      <div class="card-info">${item.name}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function playStream(url) {
