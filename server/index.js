@@ -13,8 +13,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ── LİNKLER ──────────────────────────────────────────────────
-const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/recFilmlerkategori.m3u';
-const RADIO_M3U_URL = 'BURAYA_RADYO_M3U_LINKINI_YAPISTIR.m3u'; // <--- Radyo linkini buraya koy
+const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/canl%C4%B1%20tv.m3u';
+const RADIO_M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/RadyoSeytan.m3u'; // <--- Radyo linkini buraya koy
 
 // ── ORTAK M3U PARÇALAYICI FONKSİYON ──────────────────────────
 async function parseM3U(url) {
