@@ -3,7 +3,6 @@ import cors from 'cors';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { searchTMDB, getMovieDetails, getTVDetails, getTrending, getPopular } from './tmdb.js';
-import { getEmbedSources } from './sources.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -11,17 +10,16 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-// Statik dosyaları servis et
 app.use(express.static(path.join(__dirname, '../public')));
-// Radyo M3U URL'si
-const RADIO_M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/RadyoSeytan.m3u';
 
-// ── M3U LİSTESİ ÇEKME (SENİN GITHUB LİNKİN) ───────────────────
-const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/canl%C4%B1%20tv.m3u';
+// ── LİNKLER ──────────────────────────────────────────────────
+const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/recFilmlerkategori.m3u';
+const RADIO_M3U_URL = 'BURAYA_RADYO_M3U_LINKINI_YAPISTIR.m3u'; // <--- Radyo linkini buraya koy
 
-app.get('/api/m3u-list', async (req, res) => {
+// ── ORTAK M3U PARÇALAYICI FONKSİYON ──────────────────────────
+async function parseM3U(url) {
   try {
-    const response = await fetch(M3U_URL);
+    const response = await fetch(url);
     const text = await response.text();
     const lines = text.split('\n');
     const playlist = [];
@@ -32,64 +30,55 @@ app.get('/api/m3u-list', async (req, res) => {
         const name = namePart ? namePart.trim() : "Kanal";
         
         const logoMatch = lines[i].match(/tvg-logo="([^"]+)"/);
-        const logo = logoMatch ? logoMatch[1] : null;
+        const groupMatch = lines[i].match(/group-title="([^"]+)"/);
         
-        const url = lines[i + 1] ? lines[i + 1].trim() : null;
+        const logo = logoMatch ? logoMatch[1] : null;
+        const group = groupMatch ? groupMatch[1] : "Genel";
+        const streamUrl = lines[i + 1] ? lines[i + 1].trim() : null;
 
-        if (url && !url.startsWith('#')) {
-          playlist.push({ name, url, logo });
+        if (streamUrl && !streamUrl.startsWith('#')) {
+          playlist.push({ name, url: streamUrl, logo, group });
         }
       }
     }
-    res.json(playlist);
+    return playlist;
   } catch (e) {
-    res.status(500).json({ error: "M3U listesi çekilemedi: " + e.message });
+    return [];
   }
+}
+
+// ── API ENDPOINTLERİ ─────────────────────────────────────────
+
+// 1. Canlı TV Listesi
+app.get('/api/m3u-list', async (req, res) => {
+  const data = await parseM3U(M3U_URL);
+  res.json(data);
 });
 
-// ── TRENDLER (ANA SAYFA İÇİN) ──────────────────────────────
+// 2. Radyo Listesi (YENİ EKLENDİ)
+app.get('/api/radio-list', async (req, res) => {
+  const data = await parseM3U(RADIO_M3U_URL);
+  res.json(data);
+});
+
+// 3. Trendler ve TMDB Diğerleri
 app.get('/api/trending', async (req, res) => {
   try {
-    const { type = 'all', period = 'week', lang = 'tr-TR' } = req.query;
-    const data = await getTrending(type, period, lang);
+    const data = await getTrending('all', 'week', 'tr-TR');
     res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── ARAMA ────────────────────────────────────────────────────
 app.get('/api/search', async (req, res) => {
   try {
-    const { q, lang = 'tr-TR' } = req.query;
-    if (!q) return res.json({ results: [] });
-    const results = await searchTMDB(q, lang);
+    const results = await searchTMDB(req.query.q, 'tr-TR');
     res.json(results);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ── FİLM VE DİZİ DETAY ───────────────────────────────────────
-app.get('/api/movie/:id', async (req, res) => {
-  try {
-    const data = await getMovieDetails(req.params.id, 'tr-TR');
-    res.json(data);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/tv/:id', async (req, res) => {
-  try {
-    const data = await getTVDetails(req.params.id, 'tr-TR');
-    res.json(data);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Herhangi bir hata durumunda veya doğrudan erişimde index.html'e yönlendir
+// Catch-all: index.html'e yönlendir
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Sunucu ${PORT} portunda hazır.`);
-});
+app.listen(PORT, () => console.log(`Sunucu aktif: ${PORT}`));
