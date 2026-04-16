@@ -81,7 +81,7 @@ async function initHome() {
     const res = await fetch('/api/trending');
     const data = await res.json();
     renderGrid(data.results, "🔥 Haftalık Trendler");
-  } catch (e) { content.innerHTML = 'Bağlantı hatası.'; }
+  } catch (e) { content.innerHTML = 'Hoş Geldiniz. İyi Seyirler...'; }
 }
 
 async function fetchLiveTV() {
