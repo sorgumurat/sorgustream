@@ -6,84 +6,125 @@
 <title>StreamHub - Film & Canlı TV</title>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 <style>
-/* ... mevcut stillerine ek olarak / üzerine yaz ... */
-:root {
-  --accent: #7c6bcc;
-  --yellow: #facc15;
-  --bg2: #141420;
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg0:#07070f;--bg1:#0e0e1a;--bg2:#141420;--bg3:#1a1a2a;
+  --border:#252535;--text1:#e8e8f0;--text2:#a0a0b8;--accent:#7c6bcc;--yellow:#facc15;
+  --radius:10px;
 }
+html,body{height:100%;background:var(--bg0);color:var(--text1);font-family:sans-serif;overflow-x:hidden}
 
+/* --- Düzenlenmiş Header --- */
 header {
-    background: #0e0e1a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: var(--bg1);
     border-bottom: 2px solid var(--accent);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    gap: 15px;
 }
 
-/* Okunaklı Menü Butonları */
+.logo { font-weight: bold; color: var(--accent); font-size: 22px; cursor: pointer; min-width: fit-content; }
+
+.search-box { flex-grow: 1; max-width: 500px; position: relative; }
+.search-box input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 20px;
+    outline: none;
+}
+
+.nav-btns { display: flex; gap: 10px; }
 .nav-btns button {
-    margin-left: 10px;
-    padding: 10px 18px;
+    padding: 8px 15px;
     border-radius: 8px;
-    background: var(--accent); /* Mor arka plan */
-    color: #white !important;   /* Beyaz yazı */
+    background: var(--accent);
+    color: white !important;
     font-weight: bold;
-    text-transform: uppercase;
-    font-size: 13px;
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    font-size: 12px;
+    white-space: nowrap;
     transition: 0.3s;
 }
+.nav-btns button.live-btn { background: var(--yellow); color: #000 !important; }
+.nav-btns button:hover { opacity: 0.8; transform: translateY(-2px); }
 
-.nav-btns button:hover {
-    background: var(--yellow);
-    color: #000 !important;
-    transform: translateY(-2px);
-}
+/* --- İçerik Alanı --- */
+.container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
+.card { background: var(--bg2); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); cursor: pointer; transition: 0.3s; position: relative; }
+.card:hover { border-color: var(--accent); transform: translateY(-5px); }
+.card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }
+.card-info { padding: 10px; font-size: 13px; }
 
-.m3u-card {
-    background: var(--bg2);
-    border: 1px solid #333;
-    padding: 15px;
-    border-radius: 12px;
-    text-align: center;
-    cursor: pointer;
+/* --- Player Modal --- */
+#player-modal { display: none; position: fixed; inset: 0; background: #000; z-index: 2000; }
+.close-btn { position: absolute; top: 15px; right: 20px; font-size: 35px; color: white; cursor: pointer; z-index: 2100; }
+#video-wrapper { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+
+@media (max-width: 768px) {
+    header { flex-direction: column; height: auto; padding: 15px; }
+    .search-box { width: 100%; }
 }
 </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight:bold;color:var(--accent);font-size:24px">StreamHub</div>
+    <div class="logo" onclick="initHome()">StreamHub</div>
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Film, Dizi veya Kanal..." oninput="debounceSearch(this.value)">
+    </div>
     <div class="nav-btns">
         <button onclick="initHome()">🏠 ANA SAYFA</button>
-        <button onclick="fetchM3U()" style="background:var(--yellow); color:#000 !important">📺 CANLI TV</button>
+        <button class="live-btn" onclick="fetchM3U()">📺 CANLI TV</button>
     </div>
 </header>
 
-<div id="mainContent" class="container"></div>
+<div class="container" id="mainContent"></div>
 
 <div id="player-modal">
-    <button onclick="closePlayer()" style="position:fixed; top:20px; right:20px; color:white; font-size:40px; background:none; z-index:2000">&times;</button>
-    <div id="video-wrapper" style="width:100%; height:100%">
-        </div>
+    <span class="close-btn" onclick="closePlayer()">&times;</span>
+    <div id="video-wrapper"></div>
 </div>
 
 <script>
-// --- AKILLI OYNATICI (Vidmoly, M3U8, MP4 Çözücü) ---
+const $ = id => document.getElementById(id);
+let searchTimer;
+
+// --- BAŞLATMA ---
+async function initHome() {
+    $('mainContent').innerHTML = '<p>Trendler yükleniyor...</p>';
+    try {
+        const res = await fetch('/api/trending');
+        const data = await res.json();
+        renderGrid(data.results || [], "Haftalık Trendler");
+    } catch (e) { $('mainContent').innerHTML = 'Hata oluştu.'; }
+}
+
+// --- AKILLI OYNATICI (Vidmoly, M3U8, Dublaj Destekli) ---
 function playSmartStream(url) {
-    const wrapper = document.getElementById('video-wrapper');
-    const modal = document.getElementById('player-modal');
+    const modal = $('player-modal');
+    const wrapper = $('video-wrapper');
     modal.style.display = 'block';
-    wrapper.innerHTML = ''; // Temizle
+    document.body.style.overflow = 'hidden';
+    wrapper.innerHTML = '';
 
     if (url.includes('vidmoly.me')) {
-        // Vidmoly bir iframe sayfasıdır
-        const embedUrl = url.replace('/w/', '/embed-') + '.html'; 
-        wrapper.innerHTML = `<iframe src="${embedUrl}" frameborder="0" allowfullscreen style="width:100%; height:100%"></iframe>`;
+        // Vidmoly URL'sini iframe dostu hale getir
+        let embed = url;
+        if (url.includes('/w/')) embed = url.replace('/w/', '/embed-') + '.html';
+        wrapper.innerHTML = `<iframe src="${embed}" frameborder="0" allowfullscreen style="width:100%; height:100%"></iframe>`;
     } 
     else if (url.includes('.m3u8')) {
-        // Canlı TV linki
         wrapper.innerHTML = `<video id="hls-player" controls style="width:100%; height:100%"></video>`;
-        const video = document.getElementById('hls-player');
+        const video = $('hls-player');
         if (Hls.isSupported()) {
             const hls = new Hls();
             hls.loadSource(url);
@@ -92,19 +133,67 @@ function playSmartStream(url) {
         }
     } 
     else {
-        // Diğer (Vidsrc vb.)
         wrapper.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen style="width:100%; height:100%"></iframe>`;
     }
 }
 
-// Dublaj için openPlayer fonksiyonunu güncelle
+// Film/Dizi Oynatırken vidsrc.pro (Dublaj için daha iyi) kullan
 function openPlayer(id, type) {
-    // Vidsrc.pro dublaj konusunda daha stabildir
-    const url = `https://vidsrc.pro/embed/${type}/${id}?lang=tr`; 
+    const url = `https://vidsrc.pro/embed/${type}/${id}?lang=tr`;
     playSmartStream(url);
 }
 
-// ... fetchM3U ve diğer fonksiyonlar ...
+// --- M3U LİSTESİ ---
+async function fetchM3U() {
+    $('mainContent').innerHTML = '<p>Kanallar yükleniyor...</p>';
+    try {
+        const res = await fetch('/api/m3u-list');
+        const list = await res.json();
+        let html = '<div class="grid">';
+        list.forEach(item => {
+            html += `
+                <div class="card" onclick="playSmartStream('${item.url}')">
+                    <img src="${item.logo || 'https://placehold.co/400x600?text=TV'}" onerror="this.src='https://placehold.co/400x600?text=TV'">
+                    <div class="card-info"><b>${item.name}</b></div>
+                </div>`;
+        });
+        html += '</div>';
+        $('mainContent').innerHTML = '<h2 style="margin-bottom:15px">Canlı TV Kanalları</h2>' + html;
+    } catch (e) { $('mainContent').innerHTML = 'M3U Yüklenemedi.'; }
+}
+
+function debounceSearch(q) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => searchTMDB(q), 500);
+}
+
+async function searchTMDB(query) {
+    if (query.length < 3) return;
+    const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    renderGrid(data.results || [], `"${query}" sonuçları`);
+}
+
+function renderGrid(items, title) {
+    let html = `<h2 style="margin-bottom:15px">${title}</h2><div class="grid">`;
+    items.forEach(item => {
+        html += `
+            <div class="card" onclick="openPlayer(${item.id}, '${item.type || 'movie'}')">
+                <img src="${item.poster || ''}" onerror="this.src='https://placehold.co/400x600?text=Yok'">
+                <div class="card-info"><b>${item.title || item.name}</b><br><small>${item.year || ''}</small></div>
+            </div>`;
+    });
+    html += '</div>';
+    $('mainContent').innerHTML = html;
+}
+
+function closePlayer() {
+    $('player-modal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    $('video-wrapper').innerHTML = '';
+}
+
+window.onload = initHome;
 </script>
 </body>
 </html>
