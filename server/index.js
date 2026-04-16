@@ -16,9 +16,6 @@ app.use(express.static(path.join(__dirname, '../public')));
 // Radyo M3U URL'si
 const RADIO_M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/RadyoSeytan.m3u';
 
-app.get('/api/radio-list', async (req, res) => {
-  // m3u-list ile aynı mantıkta RADIO_M3U_URL'yi fetch et
-});
 // ── M3U LİSTESİ ÇEKME (SENİN GITHUB LİNKİN) ───────────────────
 const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/canl%C4%B1%20tv.m3u';
 
