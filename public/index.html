@@ -93,7 +93,7 @@ let allData = [];
 
 async function initHome() {
   const content = document.getElementById('mainContent');
-  content.innerHTML = '<p style="color:white">Trendler yükleniyor...</p>';
+  content.innerHTML = '<p style="color:white">Hoş Glediniz. İyi Seyirler...</p>';
   try {
     const res = await fetch('/api/trending');
     const data = await res.json();
