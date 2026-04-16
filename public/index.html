@@ -10,7 +10,7 @@
 :root{
   --bg0:#070710; --bg1:#0e0e1a; --bg2:#141425;
   --accent:#7c6bcc; --accent2:#a78bfa; --yellow:#facc15; --orange:#fb923c;
-  --text1:#e8e8f0; --border:#252535; --radius:12px;
+  --text1:#e8e8f0; --text2:#a0a0b8; --border:#252535; --radius:12px;
 }
 body{ background:var(--bg0); color:var(--text1); font-family:sans-serif; overflow-x:hidden; }
 
@@ -36,23 +36,28 @@ body{ background:var(--bg0); color:var(--text1); font-family:sans-serif; overflo
 .btn-live { background: var(--yellow); color: #000; }
 .btn-radio { background: var(--orange); color: white; }
 
-/* Kategori Filtreleri */
-.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; }
+/* Kategori Filtreleri - DÜZELTİLDİ */
+.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding: 10px 0; }
 .filter-btn {
-  padding: 6px 12px; border-radius: 15px; background: var(--bg2); border: 1px solid var(--border);
-  font-size: 12px; cursor: pointer; white-space: nowrap;
+  padding: 8px 16px; border-radius: 20px; 
+  background: var(--bg2); /* Koyu arka plan */
+  border: 1px solid var(--accent); 
+  color: #ffffff !important; /* Beyaz yazı - Kesin çözüm */
+  font-size: 13px; font-weight: bold; cursor: pointer; white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
-.filter-btn.active { background: var(--accent); border-color: var(--accent); }
+.filter-btn:hover { background: var(--border); }
+.filter-btn.active { background: var(--accent); border-color: var(--accent2); }
 
 #app { padding: 85px 25px 25px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
 
-/* Kanal Kartları ve Logo Düzenlemesi */
+/* Kanal Kartları */
 .card { background: var(--bg1); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; cursor: pointer; transition: 0.2s; }
 .card:hover { border-color: var(--accent); transform: translateY(-3px); }
 .card .img-container { width: 100%; aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; padding: 10px; }
-.card img { max-width: 100%; max-height: 100%; object-fit: contain; } /* Logo sığdırma */
-.card-info { padding: 8px; font-size: 11px; font-weight: 600; text-align: center; background: var(--bg2); }
+.card img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.card-info { padding: 8px; font-size: 11px; font-weight: 600; text-align: center; background: var(--bg2); color: #fff; }
 
 #player-modal { display: none; position: fixed; inset: 0; background: #000; z-index: 2000; }
 .close-btn { position: absolute; top: 20px; right: 25px; font-size: 40px; color: white; cursor: pointer; z-index: 2100; }
@@ -61,7 +66,6 @@ body{ background:var(--bg0); color:var(--text1); font-family:sans-serif; overflo
 @media (max-width: 850px) {
   #topbar { flex-direction: column; height: auto; padding: 10px; gap: 8px; }
   #app { padding-top: 160px; }
-  .logo { font-size: 18px; }
 }
 </style>
 </head>
@@ -85,34 +89,40 @@ body{ background:var(--bg0); color:var(--text1); font-family:sans-serif; overflo
 </div>
 
 <script>
-let allData = []; // Aktif listeyi tutar
+let allData = [];
 
 async function initHome() {
   const content = document.getElementById('mainContent');
-  content.innerHTML = '<p>Trendler yükleniyor...</p>';
-  const res = await fetch('/api/trending');
-  const data = await res.json();
-  renderGrid(data.results, "🔥 Haftalık Trendler", false);
+  content.innerHTML = '<p style="color:white">Trendler yükleniyor...</p>';
+  try {
+    const res = await fetch('/api/trending');
+    const data = await res.json();
+    renderGrid(data.results, "🔥 Haftalık Trendler", false);
+  } catch(e) { content.innerHTML = "Hata oluştu."; }
 }
 
+// Liste çağırma mantığı DÜZELTİLDİ
 async function fetchList(type) {
   const content = document.getElementById('mainContent');
-  content.innerHTML = '<p>Yükleniyor...</p>';
-  // Sunucuda radyo ve tv listesi aynı endpointten ama farklı URL'lerden gelebilir 
-  // Şimdilik tv listesi üzerinden gruplama mantığını kuruyoruz
-  const res = await fetch('/api/m3u-list'); 
-  allData = await res.json();
+  content.innerHTML = '<p style="color:white">Yükleniyor...</p>';
   
-  // Örnek gruplar
-  const categories = ["Hepsi", "Ulusal", "Haber", "Müzik", "Çocuk", "Genel"];
-  let filterHtml = '<div class="filter-bar">';
-  categories.forEach(cat => {
-    filterHtml += `<button class="filter-btn" onclick="filterCategory('${cat}')">${cat}</button>`;
-  });
-  filterHtml += '</div>';
+  // Eğer tip 'radio' ise radyo endpoint'ine, değilse normal m3u'ya git
+  const endpoint = type === 'radio' ? '/api/radio-list' : '/api/m3u-list';
+  
+  try {
+    const res = await fetch(endpoint); 
+    allData = await res.json();
+    
+    const categories = ["Hepsi", "Ulusal", "Haber", "Müzik", "Çocuk", "Genel"];
+    let filterHtml = '<div class="filter-bar">';
+    categories.forEach(cat => {
+      filterHtml += `<button class="filter-btn" onclick="filterCategory('${cat}')">${cat}</button>`;
+    });
+    filterHtml += '</div>';
 
-  content.innerHTML = filterHtml + `<div id="listGrid" class="grid"></div>`;
-  filterCategory("Hepsi");
+    content.innerHTML = filterHtml + `<div id="listGrid" class="grid"></div>`;
+    filterCategory("Hepsi");
+  } catch(e) { content.innerHTML = "Liste yüklenemedi. Sunucu ayarlarını kontrol edin."; }
 }
 
 function filterCategory(cat) {
@@ -122,7 +132,7 @@ function filterCategory(cat) {
   grid.innerHTML = filtered.map(item => `
     <div class="card" onclick="playStream('${item.url}')">
       <div class="img-container">
-        <img src="${item.logo || ''}" onerror="this.src='https://via.placeholder.com/100x60?text=TV'">
+        <img src="${item.logo || ''}" onerror="this.src='https://via.placeholder.com/100x60?text=Logo'">
       </div>
       <div class="card-info">${item.name}</div>
     </div>
@@ -148,7 +158,8 @@ function playStream(url) {
 }
 
 function renderGrid(items, title, isChannel) {
-  let html = `<h2 style="margin-bottom:20px">${title}</h2><div class="grid">`;
+  let html = `<h2 style="margin-bottom:20px; color:white">${title}</h2><div class="grid">`;
+  if(!items) return;
   items.forEach(item => {
     const clickAction = isChannel ? `playStream('${item.url}')` : `playStream('https://vidsrc.xyz/embed/${item.type || 'movie'}?tmdb=${item.id}')`;
     html += `
@@ -165,6 +176,13 @@ function renderGrid(items, title, isChannel) {
 function closePlayer() {
   document.getElementById('player-modal').style.display = 'none';
   document.getElementById('video-content').innerHTML = '';
+}
+
+function handleSearch(q) {
+  if (q.length < 3) return;
+  fetch(`/api/search?q=${encodeURIComponent(q)}`)
+    .then(res => res.json())
+    .then(data => renderGrid(data.results, `"${q}" sonuçları`, false));
 }
 
 window.onload = initHome;
