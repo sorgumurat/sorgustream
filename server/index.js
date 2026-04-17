@@ -14,7 +14,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // ── LİNKLER ──────────────────────────────────────────────────
 const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/canl%C4%B1%20tv.m3u';
-const RADIO_M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/RadyoSeytan.m3u'; // <--- Radyo linkini buraya koy
+const RADIO_M3U_URL = 'https://raw.githubusercontent.com/junguler/m3u-radio-music-playlists/refs/heads/main/oi_radio/turkish.m3u'; // <--- Radyo linkini buraya koy
 
 // ── ORTAK M3U PARÇALAYICI FONKSİYON ──────────────────────────
 async function parseM3U(url) {
