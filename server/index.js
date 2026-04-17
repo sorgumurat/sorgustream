@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { searchTMDB, getTrending, getPopular } from './tmdb.js';
+import { searchTMDB, getTrending } from './tmdb.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -25,19 +25,15 @@ async function parseM3U(url) {
 
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].startsWith('#EXTINF:')) {
-        const namePart = lines[i].split(',')[1];
-        const name = namePart ? namePart.trim() : "İsimsiz Kanal";
-        
-        const logoMatch = lines[i].match(/tvg-logo="([^"]+)"/);
-        const groupMatch = lines[i].match(/group-title="([^"]+)"/);
-        
-        const logo = logoMatch ? logoMatch[1] : null;
-        const group = groupMatch ? groupMatch[1] : "Genel";
-        let streamUrl = lines[i + 1] ? lines[i + 1].trim() : null;
+        const name = lines[i].split(',')[1]?.trim() || "Kanal";
+        const logo = lines[i].match(/tvg-logo="([^"]+)"/)?.[1] || null;
+        const group = lines[i].match(/group-title="([^"]+)"/)?.[1] || "Genel";
+        let streamUrl = lines[i + 1]?.trim();
 
         if (streamUrl && !streamUrl.startsWith('#')) {
-          // RADYO DÜZELTMESİ: .pls linklerini tarayıcının çalabileceği formatlara çevirir
-          if (streamUrl.endsWith('listen.pls')) {
+          // VLC MANTIĞI: .pls uzantılı dosyaları doğrudan akışa çevirir
+          if (streamUrl.includes('listen.pls')) {
+              // Shoutcast/Icecast için klasik çözüm: sonuna ';' eklemek tarayıcıyı zorlar
               streamUrl = streamUrl.replace('listen.pls', ';');
           }
           playlist.push({ name, url: streamUrl, logo, group });
@@ -48,32 +44,19 @@ async function parseM3U(url) {
   } catch (e) { return []; }
 }
 
-app.get('/api/m3u-list', async (req, res) => {
-  const data = await parseM3U(M3U_URL);
-  res.json(data);
-});
-
-app.get('/api/radio-list', async (req, res) => {
-  const data = await parseM3U(RADIO_M3U_URL);
-  res.json(data);
-});
+app.get('/api/m3u-list', async (req, res) => res.json(await parseM3U(M3U_URL)));
+app.get('/api/radio-list', async (req, res) => res.json(await parseM3U(RADIO_M3U_URL)));
 
 app.get('/api/trending', async (req, res) => {
-  try {
-    const data = await getTrending('all', 'week', 'tr-TR');
-    res.json(data);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  const data = await getTrending('all', 'week', 'tr-TR');
+  res.json(data);
 });
 
 app.get('/api/search', async (req, res) => {
-  try {
-    const results = await searchTMDB(req.query.q, 'tr-TR');
-    res.json(results);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  const results = await searchTMDB(req.query.q, 'tr-TR');
+  res.json(results);
 });
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
-app.listen(PORT, () => console.log(`Sunucu ${PORT} portunda çalışıyor`));
+app.listen(PORT, () => console.log(`Sunucu aktif: ${PORT}`));
