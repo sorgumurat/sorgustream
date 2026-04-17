@@ -1,198 +1,247 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>StreamHub</title>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg0:#070710; --bg1:#0e0e1a; --bg2:#141425;
-  --accent:#7c6bcc; --accent2:#a78bfa; --yellow:#facc15; --orange:#fb923c;
-  --text1:#e8e8f0; --border:#252535; --radius:12px;
-}
-body{ background:var(--bg0); color:var(--text1); font-family:sans-serif; overflow-x:hidden; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>StreamHub</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        :root{
+            --bg0:#070710; --bg1:#0e0e1a; --bg2:#141425;
+            --accent:#7c6bcc; --accent2:#a78bfa; --yellow:#facc15; --orange:#fb923c;
+            --text1:#e8e8f0; --text2:#a0a0b8; --border:#252535; --radius:12px;
+        }
+        body{ background:var(--bg0); color:var(--text1); font-family:sans-serif; overflow-x:hidden; }
+        
+        /* Header & Navigation */
+        #topbar {
+            position: fixed; top: 0; left: 0; right: 0; height: 65px;
+            background: rgba(14, 14, 26, 0.95); backdrop-filter: blur(10px);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 25px; border-bottom: 1px solid var(--border); z-index: 1000;
+        }
+        .logo { font-size: 20px; font-weight: 800; color: var(--accent2); cursor: pointer; white-space: nowrap; }
+        .search-box { flex: 1; max-width: 350px; margin: 0 15px; }
+        .search-box input {
+            width: 100%; background: var(--bg2); border: 1px solid var(--border);
+            padding: 8px 15px; border-radius: 20px; color: white; outline: none;
+        }
+        .nav-btns { display: flex; gap: 8px; }
+        .btn { padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; border: none; transition: 0.2s; white-space: nowrap; }
+        .btn-home { background: var(--accent); color: white; }
+        .btn-live { background: var(--yellow); color: #000; }
+        .btn-radio { background: var(--orange); color: white; }
 
-#topbar {
-  position: fixed; top: 0; left: 0; right: 0; height: 65px;
-  background: rgba(14, 14, 26, 0.95); backdrop-filter: blur(10px);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 25px; border-bottom: 1px solid var(--border); z-index: 1000;
-}
-.logo { font-size: 20px; font-weight: 800; color: var(--accent2); cursor: pointer; }
-.search-box { flex: 1; max-width: 350px; margin: 0 15px; }
-.search-box input {
-  width: 100%; background: var(--bg2); border: 1px solid var(--border);
-  padding: 8px 15px; border-radius: 20px; color: white; outline: none;
-}
-.nav-btns { display: flex; gap: 8px; }
-.btn { padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; border: none; }
-.btn-home { background: var(--accent); color: white; }
-.btn-live { background: var(--yellow); color: #000; }
-.btn-radio { background: var(--orange); color: white; }
+        /* Kategori Butonları */
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding: 10px 0; }
+        .filter-btn {
+            padding: 8px 16px; border-radius: 20px; background: var(--bg2); border: 1px solid var(--accent); 
+            color: #ffffff !important; font-size: 13px; font-weight: bold; cursor: pointer; white-space: nowrap;
+        }
+        .filter-btn.active { background: var(--accent); }
 
-.filter-bar { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding: 10px 0; }
-.filter-btn {
-  padding: 8px 16px; border-radius: 20px; background: var(--bg2); border: 1px solid var(--accent); 
-  color: #fff !important; font-size: 13px; font-weight: bold; cursor: pointer; white-space: nowrap;
-}
+        #app { padding: 85px 25px 25px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
 
-#app { padding: 85px 25px 25px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
-.card { background: var(--bg1); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; cursor: pointer; transition: 0.2s; }
-.card:hover { border-color: var(--accent); transform: translateY(-3px); }
-.card .img-container { width: 100%; aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; padding: 10px; }
-.card img { max-width: 90%; max-height: 90%; object-fit: contain; }
-.card-info { padding: 8px; font-size: 11px; font-weight: 600; text-align: center; background: var(--bg2); min-height: 40px; display: flex; align-items: center; justify-content: center; }
+        /* Kart Tasarımı */
+        .card { background: var(--bg1); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; cursor: pointer; transition: 0.2s; }
+        .card:hover { border-color: var(--accent); transform: translateY(-3px); }
+        .card .img-container { width: 100%; aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; padding: 10px; }
+        .card img { max-width: 90%; max-height: 90%; object-fit: contain; }
+        .card-info { padding: 8px; font-size: 11px; font-weight: 600; text-align: center; background: var(--bg2); min-height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; }
 
-#player-modal { display: none; position: fixed; inset: 0; background: #000; z-index: 2000; }
-.close-btn { position: absolute; top: 20px; right: 25px; font-size: 40px; color: white; cursor: pointer; z-index: 2100; }
-#video-content { width: 100%; height: 100%; }
+        /* Player Modal */
+        #player-modal { display: none; position: fixed; inset: 0; background: #000; z-index: 2000; }
+        .close-btn { position: absolute; top: 20px; right: 25px; font-size: 40px; color: white; cursor: pointer; z-index: 2100; }
+        #video-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
 
-@media (max-width: 850px) { #topbar { flex-direction: column; height: auto; padding: 10px; gap: 8px; } #app { padding-top: 160px; } }
-</style>
+        @media (max-width: 850px) {
+            #topbar { flex-direction: column; height: auto; padding: 10px; gap: 8px; }
+            #app { padding-top: 160px; }
+        }
+    </style>
 </head>
 <body>
 
 <div id="topbar">
-  <div class="logo" onclick="initHome()">▶ StreamHub</div>
-  <div class="search-box"><input type="text" placeholder="Film, TV veya Radyo ara..." oninput="handleSearch(this.value)"></div>
-  <div class="nav-btns">
-    <button class="btn btn-home" onclick="initHome()">🏠 ANA SAYFA</button>
-    <button class="btn btn-live" onclick="fetchList('tv')">📺 CANLI TV</button>
-    <button class="btn btn-radio" onclick="fetchList('radio')">📻 RADYO</button>
-  </div>
+    <div class="logo" onclick="initHome()">▶ StreamHub</div>
+    <div class="search-box"><input type="text" id="searchInput" placeholder="Film, TV veya Radyo ara..." oninput="handleSearch(this.value)"></div>
+    <div class="nav-btns">
+        <button class="btn btn-home" onclick="initHome()">🏠 ANA SAYFA</button>
+        <button class="btn btn-live" onclick="fetchList('tv')">📺 CANLI TV</button>
+        <button class="btn btn-radio" onclick="fetchList('radio')">📻 RADYO</button>
+    </div>
 </div>
 
 <div id="app"><div id="mainContent"></div></div>
 
 <div id="player-modal">
-  <span class="close-btn" onclick="closePlayer()">&times;</span>
-  <div id="video-content"></div>
+    <span class="close-btn" onclick="closePlayer()">&times;</span>
+    <div id="video-content"></div>
 </div>
 
 <script>
-let allData = [];
-const defaultTVLogo = "https://cdn-icons-png.flaticon.com/512/716/716429.png";
-const defaultRadioLogo = "https://cdn-icons-png.flaticon.com/512/3012/3012351.png";
+    let allData = []; // Aktif M3U verilerini tutar
+    const defaultTVLogo = "https://cdn-icons-png.flaticon.com/512/716/716429.png";
+    const defaultRadioLogo = "https://cdn-icons-png.flaticon.com/512/3012/3012351.png";
 
-async function initHome() {
-  const content = document.getElementById('mainContent');
-  content.innerHTML = '<p>Yükleniyor...</p>';
-  try {
-    const res = await fetch('/api/trending');
-    const data = await res.json();
-    renderGrid(data.results, "🔥 Haftalık Trendler");
-  } catch(e) { content.innerHTML = "Hata oluştu."; }
-}
-
-async function fetchList(type) {
-  const content = document.getElementById('mainContent');
-  content.innerHTML = '<p>Liste yükleniyor...</p>';
-  const endpoint = type === 'radio' ? '/api/radio-list' : '/api/m3u-list';
-  
-  try {
-    const res = await fetch(endpoint); 
-    allData = await res.json();
-    let filterHtml = '';
-    if (type !== 'radio') {
-      const categories = ["Hepsi", "Ulusal", "Haber", "Müzik", "Çocuk", "Genel"];
-      filterHtml = '<div class="filter-bar">';
-      categories.forEach(cat => { filterHtml += `<button class="filter-btn" onclick="filterCategory('${cat}')">${cat}</button>`; });
-      filterHtml += '</div>';
+    // Ana Sayfa Trendleri
+    async function initHome() {
+        const content = document.getElementById('mainContent');
+        content.innerHTML = '<p>Yükleniyor...</p>';
+        try {
+            const res = await fetch('/api/trending');
+            const data = await res.json();
+            renderMovies(data.results, "🔥 Haftalık Trendler");
+        } catch(e) { content.innerHTML = "Veri alınamadı."; }
     }
-    content.innerHTML = filterHtml + `<div id="listGrid" class="grid"></div>`;
-    filterCategory("Hepsi");
-  } catch(e) { content.innerHTML = "Liste yüklenemedi."; }
-}
 
-function filterCategory(cat) {
-  const grid = document.getElementById('listGrid');
-  if(!grid) return;
-  const filtered = cat === "Hepsi" ? allData : allData.filter(item => (item.group || "").toLowerCase().includes(cat.toLowerCase()));
-  
-  grid.innerHTML = filtered.map(item => {
-    const isRadio = item.url.includes('radio') || (item.group && item.group.toLowerCase().includes('radyo'));
-    const fallback = isRadio ? defaultRadioLogo : defaultTVLogo;
-    const logo = item.logo || fallback;
-    return `
-      <div class="card" onclick="playStream('${item.url}')">
-        <div class="img-container"><img src="${logo}" onerror="this.src='${fallback}'"></div>
-        <div class="card-info">${item.name}</div>
-      </div>`;
-  }).join('');
-}
-
-async function handleSearch(q) {
-  const content = document.getElementById('mainContent');
-  if (q.length < 2) { if(q.length === 0) initHome(); return; }
-  const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-  const data = await res.json();
-  const filteredChannels = allData.filter(item => (item.name || "").toLowerCase().includes(q.toLowerCase()));
-  let html = `<h2>"${q}" Sonuçları</h2>`;
-
-  if (filteredChannels.length > 0) {
-    html += `<h3 style="color:var(--yellow); margin:20px 0 10px">📺 Kanallar & Radyolar</h3><div class="grid">`;
-    filteredChannels.forEach(ch => {
-      const isRadio = ch.url.includes('radio');
-      const fallback = isRadio ? defaultRadioLogo : defaultTVLogo;
-      html += `<div class="card" onclick="playStream('${ch.url}')"><div class="img-container"><img src="${ch.logo || fallback}" onerror="this.src='${fallback}'"></div><div class="card-info">${ch.name}</div></div>`;
-    });
-    html += `</div>`;
-  }
-  if (data.results && data.results.length > 0) {
-    html += `<h3 style="color:var(--accent2); margin:20px 0 10px">🎬 Filmler</h3><div class="grid">`;
-    data.results.forEach(item => {
-      html += `<div class="card" onclick="playStream('https://vidsrc.xyz/embed/${item.type || 'movie'}?tmdb=${item.id}')"><img src="${item.poster}"><div class="card-info">${item.title}</div></div>`;
-    });
-    html += `</div>`;
-  }
-  content.innerHTML = html;
-}
-
-function playStream(url) {
-  const modal = document.getElementById('player-modal');
-  const wrapper = document.getElementById('video-content');
-  modal.style.display = 'block';
-  document.body.style.overflow = 'hidden';
-  wrapper.innerHTML = '';
-
-  // RADYO OYNATICI (Görüntüsüz, sadece ses için)
-  if (url.includes(':') && !url.includes('.m3u8') && !url.includes('vidsrc')) {
-      wrapper.innerHTML = `
-        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
-          <img src="${defaultRadioLogo}" style="width:150px; filter:drop-shadow(0 0 15px var(--accent))">
-          <h2 style="margin-top:20px">Radyo Oynatılıyor...</h2>
-          <audio controls autoplay style="margin-top:20px; width:70%"><source src="${url}" type="audio/mpeg"></audio>
-        </div>`;
-  } else if (url.includes('.m3u8')) {
-    wrapper.innerHTML = `<video id="video-player" controls style="width:100%; height:100%"></video>`;
-    const video = document.getElementById('video-player');
-    if (Hls.isSupported()) {
-      const hls = new Hls(); hls.loadSource(url); hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+    // Liste Getirme (TV veya Radyo)
+    async function fetchList(type) {
+        const content = document.getElementById('mainContent');
+        content.innerHTML = '<p>Yükleniyor...</p>';
+        const endpoint = type === 'radio' ? '/api/radio-list' : '/api/m3u-list';
+        
+        try {
+            const res = await fetch(endpoint);
+            allData = await res.json();
+            
+            let html = '';
+            // TV ise kategorileri göster, Radyo ise gösterme
+            if (type !== 'radio') {
+                html += '<div class="filter-bar">';
+                ["Hepsi", "Ulusal", "Haber", "Müzik", "Çocuk", "Genel"].forEach(cat => {
+                    html += `<button class="filter-btn" onclick="filterCategory('${cat}')">${cat}</button>`;
+                });
+                html += '</div>';
+            }
+            html += `<div id="listGrid" class="grid"></div>`;
+            content.innerHTML = html;
+            filterCategory("Hepsi");
+        } catch(e) { content.innerHTML = "Liste yüklenemedi."; }
     }
-  } else {
-    wrapper.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen style="width:100%; height:100%"></iframe>`;
-  }
-}
 
-function renderGrid(items, title) {
-  let html = `<h2 style="margin-bottom:20px">${title}</h2><div class="grid">`;
-  items.forEach(item => {
-    html += `<div class="card" onclick="playStream('https://vidsrc.xyz/embed/${item.type || 'movie'}?tmdb=${item.id}')"><img src="${item.poster}"><div class="card-info">${item.title || item.name}</div></div>`;
-  });
-  document.getElementById('mainContent').innerHTML = html + '</div>';
-}
+    // Kategori Filtreleme ve Logo Atama
+    function filterCategory(cat) {
+        const grid = document.getElementById('listGrid');
+        if(!grid) return;
+        const filtered = cat === "Hepsi" ? allData : allData.filter(i => (i.group || "").toLowerCase().includes(cat.toLowerCase()));
+        
+        grid.innerHTML = filtered.map(i => {
+            // Süper Esnek Radyo Algılama
+            const isRad = i.url.toLowerCase().includes('.mp3') || 
+                          i.url.toLowerCase().includes('.aac') || 
+                          (i.url.includes(':') && !i.url.includes('.m3u8') && !i.url.includes('vidsrc')) ||
+                          i.url.includes('stream') || i.url.includes('radio');
 
-function closePlayer() {
-  document.getElementById('player-modal').style.display = 'none';
-  document.getElementById('video-content').innerHTML = '';
-  document.body.style.overflow = 'auto';
-}
+            const fb = isRad ? defaultRadioLogo : defaultTVLogo;
+            const logo = i.logo || fb;
 
-window.onload = initHome;
+            return `
+                <div class="card" onclick="playStream('${i.url}')">
+                    <div class="img-container">
+                        <img src="${logo}" onerror="this.src='${fb}'" style="filter: drop-shadow(0px 0px 5px rgba(124, 107, 204, 0.4))">
+                    </div>
+                    <div class="card-info">${i.name}</div>
+                </div>`;
+        }).join('');
+    }
+
+    // SÜPER ESNEK OYNATICI (VLC Mantığı)
+    function playStream(url) {
+        const modal = document.getElementById('player-modal');
+        const wrapper = document.getElementById('video-content');
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+        wrapper.innerHTML = '';
+
+        const isRadio = url.toLowerCase().includes('.mp3') || 
+                        url.toLowerCase().includes('.aac') || 
+                        (url.includes(':') && !url.includes('.m3u8') && !url.includes('vidsrc')) ||
+                        url.includes('stream') || url.includes('radio') || url.includes('listen');
+
+        if (isRadio && !url.includes('vidsrc')) {
+            wrapper.innerHTML = `
+                <div style="text-align:center; color:white; padding:20px;">
+                    <img src="${defaultRadioLogo}" style="width:160px; filter:drop-shadow(0 0 20px var(--accent)); margin-bottom:20px;">
+                    <h2 style="margin-bottom:10px;">Radyo Yayını</h2>
+                    <audio controls autoplay style="width:320px; margin-top:10px;">
+                        <source src="${url}" type="audio/mpeg">
+                        <source src="${url}" type="audio/aac">
+                        Tarayıcınız bu akışı desteklemiyor.
+                    </audio>
+                </div>`;
+        } else if (url.includes('.m3u8')) {
+            wrapper.innerHTML = `<video id="video-player" controls style="width:100%; height:100%"></video>`;
+            const video = document.getElementById('video-player');
+            if (Hls.isSupported()) {
+                const hls = new Hls(); hls.loadSource(url); hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+            }
+        } else {
+            wrapper.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen style="width:100%; height:100%"></iframe>`;
+        }
+    }
+
+    // Hibrit Arama (Film + Kanal)
+    async function handleSearch(q) {
+        const content = document.getElementById('mainContent');
+        if (q.length < 2) { if(q.length === 0) initHome(); return; }
+
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        const filteredChannels = allData.filter(i => (i.name || "").toLowerCase().includes(q.toLowerCase()));
+
+        let html = `<h2>"${q}" Sonuçları</h2>`;
+
+        if (filteredChannels.length > 0) {
+            html += `<h3 style="color:var(--yellow); margin:20px 0 10px">📺 Kanallar & Radyolar</h3><div class="grid">`;
+            filteredChannels.forEach(ch => {
+                const isRad = ch.url.includes(':') && !ch.url.includes('.m3u8');
+                const fb = isRad ? defaultRadioLogo : defaultTVLogo;
+                html += `
+                    <div class="card" onclick="playStream('${ch.url}')">
+                        <div class="img-container"><img src="${ch.logo || fb}" onerror="this.src='${fb}'"></div>
+                        <div class="card-info">${ch.name}</div>
+                    </div>`;
+            });
+            html += `</div>`;
+        }
+
+        if (data.results && data.results.length > 0) {
+            html += `<h3 style="color:var(--accent2); margin:20px 0 10px">🎬 Filmler & Diziler</h3><div class="grid">`;
+            data.results.forEach(item => {
+                html += `
+                    <div class="card" onclick="playStream('https://vidsrc.xyz/embed/${item.type || 'movie'}?tmdb=${item.id}')">
+                        <img src="${item.poster}" alt="${item.title}">
+                        <div class="card-info">${item.title}</div>
+                    </div>`;
+            });
+            html += `</div>`;
+        }
+        content.innerHTML = html;
+    }
+
+    function renderMovies(items, title) {
+        let html = `<h2 style="margin-bottom:20px">${title}</h2><div class="grid">`;
+        items.forEach(item => {
+            html += `
+                <div class="card" onclick="playStream('https://vidsrc.xyz/embed/${item.type || 'movie'}?tmdb=${item.id}')">
+                    <img src="${item.poster}" alt="${item.title}">
+                    <div class="card-info">${item.title}</div>
+                </div>`;
+        });
+        document.getElementById('mainContent').innerHTML = html + '</div>';
+    }
+
+    function closePlayer() {
+        document.getElementById('player-modal').style.display = 'none';
+        document.getElementById('video-content').innerHTML = '';
+        document.body.style.overflow = 'auto';
+    }
+
+    window.onload = initHome;
 </script>
 </body>
 </html>
