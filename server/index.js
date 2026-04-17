@@ -1,33 +1,79 @@
-function playStream(url) {
-  const modal = document.getElementById('player-modal');
-  const wrapper = document.getElementById('video-content');
-  modal.style.display = 'block';
-  document.body.style.overflow = 'hidden';
-  wrapper.innerHTML = '';
+import express from 'express';
+import cors from 'cors';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import { searchTMDB, getTrending, getPopular } from './tmdb.js';
 
-  // 1. Durum: Radyo Yayını (Genelde .m3u8 değilse ve radyo sekmesindeysek)
-  if (url.includes(':') && !url.includes('.m3u8')) {
-    wrapper.innerHTML = `
-      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:white;">
-        <img src="${defaultRadioLogo}" style="width:150px; margin-bottom:20px; filter: drop-shadow(0 0 15px var(--accent));">
-        <h3>Radyo Yayını Oynatılıyor...</h3>
-        <audio id="audio-player" controls autoplay style="margin-top:20px; width:80%;">
-          <source src="${url}" type="audio/mpeg">
-          Tarayıcınız radyo çalmayı desteklemiyor.
-        </audio>
-      </div>`;
-  } 
-  // 2. Durum: Canlı TV (.m3u8)
-  else if (url.includes('.m3u8')) {
-    wrapper.innerHTML = `<video id="video-player" controls style="width:100%; height:100%"></video>`;
-    const video = document.getElementById('video-player');
-    if (Hls.isSupported()) {
-      const hls = new Hls(); hls.loadSource(url); hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../public')));
+
+// LİNKLERİNİZİ BURAYA YAPIŞTIRIN
+const M3U_URL = 'https://raw.githubusercontent.com/sorgumurat/sorguportal/refs/heads/main/recFilmlerkategori.m3u';
+const RADIO_M3U_URL = 'RADYO_M3U_LINKINI_BURAYA_YAPISTIRIN'; 
+
+async function parseM3U(url) {
+  try {
+    const response = await fetch(url);
+    const text = await response.text();
+    const lines = text.split('\n');
+    const playlist = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('#EXTINF:')) {
+        const namePart = lines[i].split(',')[1];
+        const name = namePart ? namePart.trim() : "İsimsiz Kanal";
+        
+        const logoMatch = lines[i].match(/tvg-logo="([^"]+)"/);
+        const groupMatch = lines[i].match(/group-title="([^"]+)"/);
+        
+        const logo = logoMatch ? logoMatch[1] : null;
+        const group = groupMatch ? groupMatch[1] : "Genel";
+        let streamUrl = lines[i + 1] ? lines[i + 1].trim() : null;
+
+        if (streamUrl && !streamUrl.startsWith('#')) {
+          // RADYO DÜZELTMESİ: .pls linklerini tarayıcının çalabileceği formatlara çevirir
+          if (streamUrl.endsWith('listen.pls')) {
+              streamUrl = streamUrl.replace('listen.pls', ';');
+          }
+          playlist.push({ name, url: streamUrl, logo, group });
+        }
+      }
     }
-  } 
-  // 3. Durum: Film/Dizi (Iframe)
-  else {
-    wrapper.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen style="width:100%; height:100%"></iframe>`;
-  }
+    return playlist;
+  } catch (e) { return []; }
 }
+
+app.get('/api/m3u-list', async (req, res) => {
+  const data = await parseM3U(M3U_URL);
+  res.json(data);
+});
+
+app.get('/api/radio-list', async (req, res) => {
+  const data = await parseM3U(RADIO_M3U_URL);
+  res.json(data);
+});
+
+app.get('/api/trending', async (req, res) => {
+  try {
+    const data = await getTrending('all', 'week', 'tr-TR');
+    res.json(data);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/search', async (req, res) => {
+  try {
+    const results = await searchTMDB(req.query.q, 'tr-TR');
+    res.json(results);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+app.listen(PORT, () => console.log(`Sunucu ${PORT} portunda çalışıyor`));
