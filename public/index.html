@@ -94,7 +94,7 @@
             const res = await fetch('/api/trending');
             const data = await res.json();
             renderMovies(data.results, "🔥 Haftalık Trendler");
-        } catch(e) { content.innerHTML = "Veri alınamadı."; }
+        } catch(e) { content.innerHTML = "Hoş Geldiniz. İyi seyirler..."; }
     }
 
     // Liste Getirme (TV veya Radyo)
