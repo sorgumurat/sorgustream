@@ -14,14 +14,14 @@
 
 const MOVIE_PROVIDERS = [
   {
-    id: 'vidsrc_to',
+    id: 'vidsrc_xyz',
     name: 'VidSrc',
     icon: '🎬',
     qualities: ['1080p', '720p', '480p'],
     hasDub: true,
     hasSub: true,
     langs: ['tr', 'en'],
-    urlFn: (id) => `https://vidsrc.to/embed/movie?tmdb=${id}`,
+    urlFn: (id) => `https://vidsrc.xyz/embed/movie?tmdb=${id}`,
   },
   {
     id: 'vidsrc_me',
@@ -77,14 +77,14 @@ const MOVIE_PROVIDERS = [
 
 const TV_PROVIDERS = [
   {
-    id: 'vidsrc_to',
+    id: 'vidsrc_xyz',
     name: 'VidSrc',
     icon: '🎬',
     qualities: ['1080p', '720p', '480p'],
     hasDub: true,
     hasSub: true,
     langs: ['tr', 'en'],
-    urlFn: (id, s, e) => `https://vidsrc.to/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
+    urlFn: (id, s, e) => `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
   },
   {
     id: 'vidsrc_me',
