@@ -213,7 +213,7 @@
             html += `<h3 style="color:var(--accent2); margin:20px 0 10px">🎬 Filmler & Diziler</h3><div class="grid">`;
             data.results.forEach(item => {
                 html += `
-                    <div class="card" onclick="playStream('https://vidsrc.xyz/embed/${item.type || 'movie'}?tmdb=${item.id}')">
+                    <div class="card" onclick="playStream('https://vidsrc.to/embed/${item.type || 'movie'}?tmdb=${item.id}')">
                         <img src="${item.poster}" alt="${item.title}">
                         <div class="card-info">${item.title}</div>
                     </div>`;
@@ -227,7 +227,7 @@
         let html = `<h2 style="margin-bottom:20px">${title}</h2><div class="grid">`;
         items.forEach(item => {
             html += `
-                <div class="card" onclick="playStream('https://vidsrc.xyz/embed/${item.type || 'movie'}?tmdb=${item.id}')">
+                <div class="card" onclick="playStream('https://vidsrc.to/embed/${item.type || 'movie'}?tmdb=${item.id}')">
                     <img src="${item.poster}" alt="${item.title}">
                     <div class="card-info">${item.title}</div>
                 </div>`;
