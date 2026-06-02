@@ -14,7 +14,6 @@
         }
         body{ background:var(--bg0); color:var(--text1); font-family:sans-serif; overflow-x:hidden; }
         
-        /* Header & Navigation */
         #topbar {
             position: fixed; top: 0; left: 0; right: 0; height: 65px;
             background: rgba(14, 14, 26, 0.95); backdrop-filter: blur(10px);
@@ -33,7 +32,6 @@
         .btn-live { background: var(--yellow); color: #000; }
         .btn-radio { background: var(--orange); color: white; }
 
-        /* Kategori Butonları */
         .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding: 10px 0; }
         .filter-btn {
             padding: 8px 16px; border-radius: 20px; background: var(--bg2); border: 1px solid var(--accent); 
@@ -44,17 +42,26 @@
         #app { padding: 85px 25px 25px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
 
-        /* Kart Tasarımı */
         .card { background: var(--bg1); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; cursor: pointer; transition: 0.2s; }
         .card:hover { border-color: var(--accent); transform: translateY(-3px); }
         .card .img-container { width: 100%; aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; padding: 10px; }
         .card img { max-width: 90%; max-height: 90%; object-fit: contain; }
         .card-info { padding: 8px; font-size: 11px; font-weight: 600; text-align: center; background: var(--bg2); min-height: 40px; display: flex; align-items: center; justify-content: center; color: #fff; }
 
-        /* Player Modal */
         #player-modal { display: none; position: fixed; inset: 0; background: #000; z-index: 2000; }
         .close-btn { position: absolute; top: 20px; right: 25px; font-size: 40px; color: white; cursor: pointer; z-index: 2100; }
         #video-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+
+        .loading-spinner {
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         @media (max-width: 850px) {
             #topbar { flex-direction: column; height: auto; padding: 10px; gap: 8px; }
@@ -82,25 +89,41 @@
 </div>
 
 <script>
-    let allData = []; // Aktif M3U verilerini tutar
+    let allData = [];
     const defaultTVLogo = "https://cdn-icons-png.flaticon.com/512/716/716429.png";
     const defaultRadioLogo = "https://cdn-icons-png.flaticon.com/512/3012/3012351.png";
+    
+    // ÇALIŞAN VİDSRC TO ADRESİ
+    function getVideoUrl(tmdbId, type) {
+        return `https://vidsrc.to/embed/${type}/${tmdbId}`;
+    }
 
-    // Ana Sayfa Trendleri
     async function initHome() {
         const content = document.getElementById('mainContent');
-        content.innerHTML = '<p>Yükleniyor...</p>';
+        content.innerHTML = '<div class="loading-spinner"></div><p style="text-align:center">Yükleniyor...</p>';
         try {
             const res = await fetch('/api/trending');
             const data = await res.json();
             renderMovies(data.results, "🔥 Haftalık Trendler");
-        } catch(e) { content.innerHTML = "Hoş Geldiniz. İyi seyirler..."; }
+        } catch(e) {
+            showDemoMovies();
+        }
+    }
+    
+    function showDemoMovies() {
+        const demoMovies = [
+            { id: 278, title: "Esaretin Bedeli", poster: "https://image.tmdb.org/t/p/w200/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg", type: "movie" },
+            { id: 238, title: "Baba", poster: "https://image.tmdb.org/t/p/w200/rSPw7tgCH9c6NqICZef4kZjFOQ5.jpg", type: "movie" },
+            { id: 240, title: "Baba 2", poster: "https://image.tmdb.org/t/p/w200/kDp1vUBnMpe8ak4rjgl3cLELqjU.jpg", type: "movie" },
+            { id: 155, title: "Kara Şövalye", poster: "https://image.tmdb.org/t/p/w200/qJ2tW6WMUDux911r6m7haRef0WH.jpg", type: "movie" },
+            { id: 680, title: "Pulp Fiction", poster: "https://image.tmdb.org/t/p/w200/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg", type: "movie" }
+        ];
+        renderMovies(demoMovies, "🎬 Önerilen Filmler");
     }
 
-    // Liste Getirme (TV veya Radyo)
     async function fetchList(type) {
         const content = document.getElementById('mainContent');
-        content.innerHTML = '<p>Yükleniyor...</p>';
+        content.innerHTML = '<div class="loading-spinner"></div><p style="text-align:center">Yükleniyor...</p>';
         const endpoint = type === 'radio' ? '/api/radio-list' : '/api/m3u-list';
         
         try {
@@ -108,10 +131,9 @@
             allData = await res.json();
             
             let html = '';
-            // TV ise kategorileri göster, Radyo ise gösterme
             if (type !== 'radio') {
                 html += '<div class="filter-bar">';
-                ["Hepsi", "Ulusal", "Haber", "Müzik", "Çocuk", "Genel"].forEach(cat => {
+                ["Hepsi", "Ulusal", "Haber", "Müzik", "Çocuk", "Genel", "Spor", "Belgesel"].forEach(cat => {
                     html += `<button class="filter-btn" onclick="filterCategory('${cat}')">${cat}</button>`;
                 });
                 html += '</div>';
@@ -119,36 +141,79 @@
             html += `<div id="listGrid" class="grid"></div>`;
             content.innerHTML = html;
             filterCategory("Hepsi");
-        } catch(e) { content.innerHTML = "Liste yüklenemedi."; }
+        } catch(e) {
+            content.innerHTML = "<p>Liste yüklenemedi. Demo kanallar gösteriliyor...</p><div id='listGrid' class='grid'></div>";
+            showDemoChannels();
+        }
+    }
+    
+    function showDemoChannels() {
+        const demoChannels = [
+            { name: "TRT 1", url: "https://cdn-krtrt.radyotvonline.com/trt1/trt1.smil/playlist.m3u8", logo: "https://www.trt.net.tr/Content/Images/logo/trt1.png", group: "Ulusal" },
+            { name: "Kanal D", url: "https://kanald.radyotvonline.com/kanald/kanald.smil/playlist.m3u8", logo: "", group: "Ulusal" },
+            { name: "Show TV", url: "https://showtv.radyotvonline.com/showtv/showtv.smil/playlist.m3u8", logo: "", group: "Ulusal" },
+            { name: "CNN Türk", url: "https://cnnturk.radyotvonline.com/cnnturk/cnnturk.smil/playlist.m3u8", logo: "", group: "Haber" }
+        ];
+        allData = demoChannels;
+        filterCategory("Hepsi");
     }
 
-    // Kategori Filtreleme ve Logo Atama
     function filterCategory(cat) {
         const grid = document.getElementById('listGrid');
         if(!grid) return;
         const filtered = cat === "Hepsi" ? allData : allData.filter(i => (i.group || "").toLowerCase().includes(cat.toLowerCase()));
         
+        if(filtered.length === 0) {
+            grid.innerHTML = '<p style="text-align:center; grid-column:1/-1;">Bu kategoride yayın bulunamadı.</p>';
+            return;
+        }
+        
         grid.innerHTML = filtered.map(i => {
-            // Süper Esnek Radyo Algılama
             const isRad = i.url.toLowerCase().includes('.mp3') || 
                           i.url.toLowerCase().includes('.aac') || 
-                          (i.url.includes(':') && !i.url.includes('.m3u8') && !i.url.includes('vidsrc')) ||
-                          i.url.includes('stream') || i.url.includes('radio');
-
+                          (i.url.includes(':') && !i.url.includes('.m3u8'));
             const fb = isRad ? defaultRadioLogo : defaultTVLogo;
-            const logo = i.logo || fb;
+            const logo = (i.logo && i.logo !== "") ? i.logo : fb;
 
             return `
-                <div class="card" onclick="playStream('${i.url}')">
+                <div class="card" onclick="playStream('${i.url.replace(/'/g, "\\'")}')">
                     <div class="img-container">
-                        <img src="${logo}" onerror="this.src='${fb}'" style="filter: drop-shadow(0px 0px 5px rgba(124, 107, 204, 0.4))">
+                        <img src="${logo}" onerror="this.src='${fb}'">
                     </div>
-                    <div class="card-info">${i.name}</div>
+                    <div class="card-info">${escapeHtml(i.name)}</div>
                 </div>`;
         }).join('');
     }
+    
+    function escapeHtml(str) {
+        if(!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if(m === '&') return '&amp;';
+            if(m === '<') return '&lt;';
+            if(m === '>') return '&gt;';
+            return m;
+        });
+    }
 
-    // SÜPER ESNEK OYNATICI (VLC Mantığı)
+    // Film oynatma - VİDSRC.TO ile
+    function playMovie(tmdbId, type) {
+        const modal = document.getElementById('player-modal');
+        const wrapper = document.getElementById('video-content');
+        modal.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+        
+        const videoUrl = getVideoUrl(tmdbId, type);
+        
+        wrapper.innerHTML = `
+            <iframe src="${videoUrl}" 
+                    frameborder="0" 
+                    allowfullscreen 
+                    allow="autoplay; encrypted-media" 
+                    style="width:100%; height:100%">
+            </iframe>
+        `;
+    }
+
     function playStream(url) {
         const modal = document.getElementById('player-modal');
         const wrapper = document.getElementById('video-content');
@@ -158,10 +223,13 @@
 
         const isRadio = url.toLowerCase().includes('.mp3') || 
                         url.toLowerCase().includes('.aac') || 
-                        (url.includes(':') && !url.includes('.m3u8') && !url.includes('vidsrc')) ||
-                        url.includes('stream') || url.includes('radio') || url.includes('listen');
+                        (url.includes(':') && !url.includes('.m3u8') && !url.includes('tmdb') && !url.includes('embed'));
+        
+        const isMovieLink = url.includes('tmdb') || url.includes('embed') || url.includes('vidsrc');
 
-        if (isRadio && !url.includes('vidsrc')) {
+        if (isMovieLink) {
+            wrapper.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" style="width:100%; height:100%"></iframe>`;
+        } else if (isRadio && !url.includes('.m3u8')) {
             wrapper.innerHTML = `
                 <div style="text-align:center; color:white; padding:20px;">
                     <img src="${defaultRadioLogo}" style="width:160px; filter:drop-shadow(0 0 20px var(--accent)); margin-bottom:20px;">
@@ -173,71 +241,102 @@
                     </audio>
                 </div>`;
         } else if (url.includes('.m3u8')) {
-            wrapper.innerHTML = `<video id="video-player" controls style="width:100%; height:100%"></video>`;
+            wrapper.innerHTML = `<video id="video-player" controls autoplay style="width:100%; height:100%"></video>`;
             const video = document.getElementById('video-player');
             if (Hls.isSupported()) {
-                const hls = new Hls(); hls.loadSource(url); hls.attachMedia(video);
+                const hls = new Hls();
+                hls.loadSource(url);
+                hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    console.error("HLS Error:", data);
+                    wrapper.innerHTML = '<div style="text-align:center;color:white;padding:40px;">Yayın yüklenemedi. Lütfen daha sonra tekrar deneyin.</div>';
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', () => video.play());
+            } else {
+                wrapper.innerHTML = '<div style="text-align:center;color:white;padding:40px;">Tarayıcınız bu yayın formatını desteklemiyor.</div>';
             }
         } else {
-            wrapper.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen style="width:100%; height:100%"></iframe>`;
+            wrapper.innerHTML = `<iframe src="${url}" frameborder="0" allowfullscreen allow="autoplay; encrypted-media" style="width:100%; height:100%"></iframe>`;
         }
     }
 
-    // Hibrit Arama (Film + Kanal)
     async function handleSearch(q) {
         const content = document.getElementById('mainContent');
-        if (q.length < 2) { if(q.length === 0) initHome(); return; }
-
-        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        const filteredChannels = allData.filter(i => (i.name || "").toLowerCase().includes(q.toLowerCase()));
-
-        let html = `<h2>"${q}" Sonuçları</h2>`;
-
-        if (filteredChannels.length > 0) {
-            html += `<h3 style="color:var(--yellow); margin:20px 0 10px">📺 Kanallar & Radyolar</h3><div class="grid">`;
-            filteredChannels.forEach(ch => {
-                const isRad = ch.url.includes(':') && !ch.url.includes('.m3u8');
-                const fb = isRad ? defaultRadioLogo : defaultTVLogo;
-                html += `
-                    <div class="card" onclick="playStream('${ch.url}')">
-                        <div class="img-container"><img src="${ch.logo || fb}" onerror="this.src='${fb}'"></div>
-                        <div class="card-info">${ch.name}</div>
-                    </div>`;
-            });
-            html += `</div>`;
+        if (q.length < 2) { 
+            if(q.length === 0) initHome(); 
+            return; 
         }
+        
+        content.innerHTML = '<div class="loading-spinner"></div><p style="text-align:center">Aranıyor...</p>';
+        
+        try {
+            const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            const filteredChannels = allData.filter(i => (i.name || "").toLowerCase().includes(q.toLowerCase()));
 
-        if (data.results && data.results.length > 0) {
-            html += `<h3 style="color:var(--accent2); margin:20px 0 10px">🎬 Filmler & Diziler</h3><div class="grid">`;
-            data.results.forEach(item => {
-                html += `
-<div class="card" onclick="playStream('https://vidsrc.xyz/embed/${item.type || 'movie'}?tmdb=${item.id}')">
-                       <img src="${item.poster}" alt="${item.title}">
-                        <div class="card-info">${item.title}</div>
-                    </div>`;
-            });
-            html += `</div>`;
+            let html = `<h2 style="margin-bottom:20px">"${escapeHtml(q)}" için sonuçlar</h2>`;
+
+            if (filteredChannels.length > 0) {
+                html += `<h3 style="color:var(--yellow); margin:20px 0 10px">📺 Kanallar & Radyolar</h3><div class="grid">`;
+                filteredChannels.forEach(ch => {
+                    const isRad = ch.url.includes(':') && !ch.url.includes('.m3u8');
+                    const fb = isRad ? defaultRadioLogo : defaultTVLogo;
+                    html += `
+                        <div class="card" onclick="playStream('${ch.url.replace(/'/g, "\\'")}')">
+                            <div class="img-container"><img src="${ch.logo || fb}" onerror="this.src='${fb}'"></div>
+                            <div class="card-info">${escapeHtml(ch.name)}</div>
+                        </div>`;
+                });
+                html += `</div>`;
+            }
+
+            if (data.results && data.results.length > 0) {
+                html += `<h3 style="color:var(--accent2); margin:20px 0 10px">🎬 Filmler & Diziler</h3><div class="grid">`;
+                data.results.forEach(item => {
+                    html += `
+                        <div class="card" onclick="playMovie(${item.id}, '${item.type || 'movie'}')">
+                            <div class="img-container"><img src="${item.poster}" onerror="this.src='${defaultTVLogo}'"></div>
+                            <div class="card-info">${escapeHtml(item.title)}</div>
+                        </div>`;
+                });
+                html += `</div>`;
+            }
+            
+            if(filteredChannels.length === 0 && (!data.results || data.results.length === 0)) {
+                html += `<p style="text-align:center; margin-top:40px;">Sonuç bulunamadı.</p>`;
+            }
+            
+            content.innerHTML = html;
+        } catch(e) {
+            content.innerHTML = `<p>Arama sırasında hata oluştu. Lütfen tekrar deneyin.</p>`;
         }
-        content.innerHTML = html;
     }
 
     function renderMovies(items, title) {
+        if(!items || items.length === 0) {
+            document.getElementById('mainContent').innerHTML = `<p>İçerik bulunamadı.</p>`;
+            return;
+        }
+        
         let html = `<h2 style="margin-bottom:20px">${title}</h2><div class="grid">`;
         items.forEach(item => {
             html += `
- <div class="card" onclick="playStream('https://vidsrc.xyz/embed/${item.type || 'movie'}?tmdb=${item.id}')">
-                   <img src="${item.poster}" alt="${item.title}">
-                    <div class="card-info">${item.title}</div>
+                <div class="card" onclick="playMovie(${item.id}, '${item.type || 'movie'}')">
+                    <div class="img-container"><img src="${item.poster}" onerror="this.src='${defaultTVLogo}'"></div>
+                    <div class="card-info">${escapeHtml(item.title)}</div>
                 </div>`;
         });
         document.getElementById('mainContent').innerHTML = html + '</div>';
     }
 
     function closePlayer() {
-        document.getElementById('player-modal').style.display = 'none';
-        document.getElementById('video-content').innerHTML = '';
+        const modal = document.getElementById('player-modal');
+        const wrapper = document.getElementById('video-content');
+        modal.style.display = 'none';
+        wrapper.innerHTML = '';
         document.body.style.overflow = 'auto';
     }
 
